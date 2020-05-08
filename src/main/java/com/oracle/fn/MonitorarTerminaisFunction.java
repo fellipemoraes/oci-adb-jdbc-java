@@ -1,7 +1,7 @@
 package com.oracle.fn;
 
 import java.io.File;
-import java.io.InputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -18,7 +18,8 @@ import org.apache.commons.io.FileUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.opencsv.bean.CsvToBeanBuilder;
+import com.opencsv.CSVReader;
+import com.opencsv.exceptions.CsvValidationException;
 import com.oracle.bmc.Region;
 import com.oracle.bmc.auth.ResourcePrincipalAuthenticationDetailsProvider;
 import com.oracle.bmc.objectstorage.ObjectStorage;
@@ -46,10 +47,17 @@ public class MonitorarTerminaisFunction {
 	final static String CONN_FACTORY_CLASS_NAME = "oracle.jdbc.pool.OracleDataSource";
 
 	private final ResourcePrincipalAuthenticationDetailsProvider provider;
+	//private final AuthenticationDetailsProvider provider;
 
-	public MonitorarTerminaisFunction() {
+	public MonitorarTerminaisFunction() throws IOException {
 		System.out.println("Initializing provider ...");
+
 		provider = ResourcePrincipalAuthenticationDetailsProvider.builder().build();
+
+//		String configurationFilePath = "~/.oci/config";
+//		String profile = "DEFAULT";
+
+		//provider = new ConfigFileAuthenticationDetailsProvider(configurationFilePath, profile);
 
 		System.out.println("Setting up pool data source");
 		poolDataSource = PoolDataSourceFactory.getPoolDataSource();
@@ -69,24 +77,23 @@ public class MonitorarTerminaisFunction {
 
 	@SuppressWarnings({ "rawtypes" })
 	public String handleRequest(CloudEvent event) throws SQLException, JsonProcessingException {
-		
-		
-		// String name = (input == null || input.isEmpty()) ? "world" : input;
-		List<Employer> employees = this.getDataInCsv(event);
-		
-		String msgRetorno = this.insertDataInDB(employees);
-		
 
-	
+		// String name = (input == null || input.isEmpty()) ? "world" : input;
+		List<Employee> employees = this.getDataInCsv(event);
+
+		String msgRetorno = this.insertDataInDB(employees);
 
 		return msgRetorno;
 	}
 
-	@SuppressWarnings("rawtypes")
-	private List<Employer> getDataInCsv(CloudEvent event) {
-		List<Employer> beans = null;
+	@SuppressWarnings({ "rawtypes"})
+	private List<Employee> getDataInCsv(CloudEvent event) {
+		List<Employee> emps = new ArrayList<Employee>();
 
+		System.out.println("Setting up client object store");
 		ObjectStorage client = new ObjectStorageClient(this.provider);
+		System.out.println("client object store setup...");
+
 		client.setRegion(Region.US_ASHBURN_1);
 
 		ObjectMapper objectMapper = new ObjectMapper();
@@ -99,20 +106,50 @@ public class MonitorarTerminaisFunction {
 				.objectName(data.get("resourceName").toString()).build();
 
 		GetObjectResponse objectResponse = client.getObject(objectRequest);
+		
+		CSVReader csvReader = new CSVReader(new InputStreamReader(objectResponse.getInputStream()));
+		
+		
+		
+		String[] record = null;
+
 		try {
-			client.close();
+			while ((record = csvReader.readNext()) != null) {
+				Employee emp = new Employee();
+				emp.setEmail(record[0]);
+				emp.setName(record[1]);
+				emp.setDepartamento(record[2]);
+				emps.add(emp);
+			}
+			csvReader.close();
+		} catch (NumberFormatException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (CsvValidationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		System.out.println(emps);
+		
+		
+		/*try {
 
 			InputStream inputStreamResponse = objectResponse.getInputStream();
+			InputStreamReader inputStreamReader = new InputStreamReader(inputStreamResponse);
 
-			beans = new CsvToBeanBuilder<Employer>(new InputStreamReader(inputStreamResponse)).withType(Employer.class)
+			beans = new CsvToBeanBuilder<Employee>(inputStreamReader).withType(Employee.class)
 					.build().parse();
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
+		}*/
 
-		return beans;
+		return emps;
 	}
 
 	@SuppressWarnings("unused")
@@ -129,12 +166,12 @@ public class MonitorarTerminaisFunction {
 		}
 		return list;
 	}
-	
-	private String insertDataInDB(List<Employer> employees) {
+
+	private String insertDataInDB(List<Employee> employees) {
 		String retorno = "";
-		
+
 		System.setProperty("oracle.jdbc.fanEnabled", "false");
-		
+
 		if (needWalletDownload()) {
 			System.out.println("Start wallet download...");
 			downloadWallet();
@@ -144,30 +181,31 @@ public class MonitorarTerminaisFunction {
 		try {
 			conn = poolDataSource.getConnection();
 			conn.setAutoCommit(false);
+
+			PreparedStatement stmt = conn.prepareStatement("insert into EMPLOYEES values(?,?,?)");
 			
-			PreparedStatement stmt = conn.prepareStatement("insert into employees values(?,?,?)");
-			
-			for (Employer employer : employees) {
-				stmt.setString(1,employer.getFirstName());
-				stmt.setString(2,employer.getLastName());
-				stmt.setInt(3,employer.getVisitsToWebsite());
+			System.out.println("Insert data in DB...");
+
+			for (Employee employee : employees) {
+				stmt.setString(1, employee.getEmail());
+				stmt.setString(2, employee.getName());
+				stmt.setString(3, employee.getDepartamento());
+				stmt.addBatch();
 			}
-			
+
 			int[] updateCounts = stmt.executeBatch();
 			System.out.println(Arrays.toString(updateCounts));
 			conn.commit();
-			conn.setAutoCommit(true);
 			
-
 			conn.close();
-			
+
 			retorno = "Sucesso ==============";
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			retorno = "Erro ==============";
-		} 
-		
+		}
+
 		return retorno;
 	}
 
@@ -189,6 +227,7 @@ public class MonitorarTerminaisFunction {
 		 * ResourcePrincipalAuthenticationDetailsProvider.builder().build();
 		 */
 
+		@SuppressWarnings("resource")
 		ObjectStorage client = new ObjectStorageClient(this.provider);
 		client.setRegion(Region.US_ASHBURN_1);
 
@@ -212,7 +251,6 @@ public class MonitorarTerminaisFunction {
 				File f = new File(walletDir + "/" + objectSummary.getName());
 				FileUtils.copyToFile(objectResponse.getInputStream(), f);
 				System.out.println("Stored wallet file: " + f.getAbsolutePath());
-				client.close();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
