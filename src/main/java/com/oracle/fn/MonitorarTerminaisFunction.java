@@ -18,10 +18,14 @@ import org.apache.commons.io.FileUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.opencsv.CSVParser;
+import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
 import com.opencsv.exceptions.CsvValidationException;
 import com.oracle.bmc.Region;
-import com.oracle.bmc.auth.ResourcePrincipalAuthenticationDetailsProvider;
+import com.oracle.bmc.auth.AuthenticationDetailsProvider;
+import com.oracle.bmc.auth.ConfigFileAuthenticationDetailsProvider;
 import com.oracle.bmc.objectstorage.ObjectStorage;
 import com.oracle.bmc.objectstorage.ObjectStorageClient;
 import com.oracle.bmc.objectstorage.requests.GetObjectRequest;
@@ -46,18 +50,18 @@ public class MonitorarTerminaisFunction {
 
 	final static String CONN_FACTORY_CLASS_NAME = "oracle.jdbc.pool.OracleDataSource";
 
-	private final ResourcePrincipalAuthenticationDetailsProvider provider;
-	//private final AuthenticationDetailsProvider provider;
+	//private final ResourcePrincipalAuthenticationDetailsProvider provider;
+	private final AuthenticationDetailsProvider provider;
 
 	public MonitorarTerminaisFunction() throws IOException {
 		System.out.println("Initializing provider ...");
 
-		provider = ResourcePrincipalAuthenticationDetailsProvider.builder().build();
+		//provider = ResourcePrincipalAuthenticationDetailsProvider.builder().build();
 
-//		String configurationFilePath = "~/.oci/config";
-//		String profile = "DEFAULT";
+		String configurationFilePath = "~/.oci/config";
+		String profile = "DEFAULT";
 
-		//provider = new ConfigFileAuthenticationDetailsProvider(configurationFilePath, profile);
+		provider = new ConfigFileAuthenticationDetailsProvider(configurationFilePath, profile);
 
 		System.out.println("Setting up pool data source");
 		poolDataSource = PoolDataSourceFactory.getPoolDataSource();
@@ -107,16 +111,22 @@ public class MonitorarTerminaisFunction {
 
 		GetObjectResponse objectResponse = client.getObject(objectRequest);
 		
-		CSVReader csvReader = new CSVReader(new InputStreamReader(objectResponse.getInputStream()));
 		
+		CSVParser icsvParser = new CSVParserBuilder().withSeparator('|').build();
+		
+		//CSVReader csvReader = new CSVReader(new InputStreamReader(objectResponse.getInputStream()));
+		CSVReader csvReader = new CSVReaderBuilder(new InputStreamReader(objectResponse.getInputStream())).withCSVParser(icsvParser).build();
 		
 		
 		String[] record = null;
-
+		
+		int index = 0;
+		
 		try {
 			while ((record = csvReader.readNext()) != null) {
+				index = index + 1;
 				Employee emp = new Employee();
-				emp.setEmail(record[0]);
+				emp.setEmail(index + "");
 				emp.setName(record[1]);
 				emp.setDepartamento(record[2]);
 				emps.add(emp);

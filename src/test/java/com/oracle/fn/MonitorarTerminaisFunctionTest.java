@@ -14,7 +14,7 @@ public class MonitorarTerminaisFunctionTest {
 
     @Test
     public void shouldReturnGreeting() {
-    	/* String event = "{\n" + 
+    	 String event = "{\n" + 
     	 		"  \"cloudEventsVersion\": \"0.1\",\n" + 
     	 		"  \"eventID\": \"unique_ID\",\n" + 
     	 		"  \"eventType\": \"com.oraclecloud.objectstorage.createobject\",\n" + 
@@ -28,8 +28,8 @@ public class MonitorarTerminaisFunctionTest {
     	 		"  \"data\": {\n" + 
     	 		"    \"compartmentId\": \"ocid1.compartment.oc1..aaaaaaaau32hskqd62tlchxvh2selnb4ugbrsbjs4orykyx3553cylmy54aa\",\n" + 
     	 		"    \"compartmentName\": \"CloudNative\",\n" + 
-    	 		"    \"resourceName\": \"teste.csv\",\n" + 
-    	 		"    \"resourceId\": \"/n/id4beafwqb9e/b/bucket-logs/o/teste.csv\",\n" + 
+    	 		"    \"resourceName\": \"coleta_spo_20200316090000.data\",\n" + 
+    	 		"    \"resourceId\": \"/n/id4beafwqb9e/b/bucket-logs/o/coleta_spo_20200316090000.data\",\n" + 
     	 		"    \"availabilityDomain\": \"all\",\n" + 
     	 		"    \"additionalDetails\": {\n" + 
     	 		"      \"eTag\": \"8383ea0f-7fbf-489a-aa76-17d5bd7aa7c5\",\n" + 
@@ -45,7 +45,7 @@ public class MonitorarTerminaisFunctionTest {
          testing.thenRun(MonitorarTerminaisFunction.class, "handleRequest");
 
          FnResult result = testing.getOnlyResult();
-         assertTrue(result.isSuccess());*/
+         assertTrue(result.isSuccess());
         assertEquals("Hello, world!", "Hello, world!");
         assertEquals(true, true);
     }
