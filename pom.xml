@@ -8,7 +8,7 @@
 		<fdk.version>1.0.105</fdk.version>
 	</properties>
 	<groupId>com.oracle.fn</groupId>
-	<artifactId>hello</artifactId>
+	<artifactId>monitorarTerminais</artifactId>
 	<version>1.0.0</version>
 
 	<repositories>

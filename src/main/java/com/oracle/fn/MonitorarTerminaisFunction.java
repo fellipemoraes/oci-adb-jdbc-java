@@ -6,11 +6,9 @@ import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,8 +22,7 @@ import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 import com.opencsv.exceptions.CsvValidationException;
 import com.oracle.bmc.Region;
-import com.oracle.bmc.auth.AuthenticationDetailsProvider;
-import com.oracle.bmc.auth.ConfigFileAuthenticationDetailsProvider;
+import com.oracle.bmc.auth.ResourcePrincipalAuthenticationDetailsProvider;
 import com.oracle.bmc.objectstorage.ObjectStorage;
 import com.oracle.bmc.objectstorage.ObjectStorageClient;
 import com.oracle.bmc.objectstorage.requests.GetObjectRequest;
@@ -50,18 +47,18 @@ public class MonitorarTerminaisFunction {
 
 	final static String CONN_FACTORY_CLASS_NAME = "oracle.jdbc.pool.OracleDataSource";
 
-	//private final ResourcePrincipalAuthenticationDetailsProvider provider;
-	private final AuthenticationDetailsProvider provider;
+	private final ResourcePrincipalAuthenticationDetailsProvider provider;
+//	private final AuthenticationDetailsProvider provider;
 
 	public MonitorarTerminaisFunction() throws IOException {
 		System.out.println("Initializing provider ...");
 
-		//provider = ResourcePrincipalAuthenticationDetailsProvider.builder().build();
+		provider = ResourcePrincipalAuthenticationDetailsProvider.builder().build();
 
-		String configurationFilePath = "~/.oci/config";
-		String profile = "DEFAULT";
-
-		provider = new ConfigFileAuthenticationDetailsProvider(configurationFilePath, profile);
+//		String configurationFilePath = "~/.oci/config";
+//		String profile = "DEFAULT";
+//
+//		provider = new ConfigFileAuthenticationDetailsProvider(configurationFilePath, profile);
 
 		System.out.println("Setting up pool data source");
 		poolDataSource = PoolDataSourceFactory.getPoolDataSource();
@@ -83,16 +80,16 @@ public class MonitorarTerminaisFunction {
 	public String handleRequest(CloudEvent event) throws SQLException, JsonProcessingException {
 
 		// String name = (input == null || input.isEmpty()) ? "world" : input;
-		List<Employee> employees = this.getDataInCsv(event);
+		List<Terminal> terminais = this.getDataInCsv(event);
 
-		String msgRetorno = this.insertDataInDB(employees);
+		String msgRetorno = this.insertDataInDB(terminais);
 
 		return msgRetorno;
 	}
 
-	@SuppressWarnings({ "rawtypes"})
-	private List<Employee> getDataInCsv(CloudEvent event) {
-		List<Employee> emps = new ArrayList<Employee>();
+	@SuppressWarnings({ "rawtypes" })
+	private List<Terminal> getDataInCsv(CloudEvent event) {
+		List<Terminal> terminais = new ArrayList<Terminal>();
 
 		System.out.println("Setting up client object store");
 		ObjectStorage client = new ObjectStorageClient(this.provider);
@@ -110,26 +107,19 @@ public class MonitorarTerminaisFunction {
 				.objectName(data.get("resourceName").toString()).build();
 
 		GetObjectResponse objectResponse = client.getObject(objectRequest);
-		
-		
+
 		CSVParser icsvParser = new CSVParserBuilder().withSeparator('|').build();
-		
-		//CSVReader csvReader = new CSVReader(new InputStreamReader(objectResponse.getInputStream()));
-		CSVReader csvReader = new CSVReaderBuilder(new InputStreamReader(objectResponse.getInputStream())).withCSVParser(icsvParser).build();
-		
-		
+
+		// CSVReader csvReader = new CSVReader(new
+		// InputStreamReader(objectResponse.getInputStream()));
+		CSVReader csvReader = new CSVReaderBuilder(new InputStreamReader(objectResponse.getInputStream()))
+				.withCSVParser(icsvParser).build();
+
 		String[] record = null;
-		
-		int index = 0;
-		
+
 		try {
 			while ((record = csvReader.readNext()) != null) {
-				index = index + 1;
-				Employee emp = new Employee();
-				emp.setEmail(index + "");
-				emp.setName(record[1]);
-				emp.setDepartamento(record[2]);
-				emps.add(emp);
+				terminais.add(this.convertCsvToTerminal(record));
 			}
 			csvReader.close();
 		} catch (NumberFormatException e) {
@@ -143,41 +133,34 @@ public class MonitorarTerminaisFunction {
 			e.printStackTrace();
 		}
 
-		System.out.println(emps);
-		
-		
-		/*try {
-
-			InputStream inputStreamResponse = objectResponse.getInputStream();
-			InputStreamReader inputStreamReader = new InputStreamReader(inputStreamResponse);
-
-			beans = new CsvToBeanBuilder<Employee>(inputStreamReader).withType(Employee.class)
-					.build().parse();
-
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}*/
-
-		return emps;
+		return terminais;
 	}
 
-	@SuppressWarnings("unused")
-	private List<HashMap<String, Object>> convertResultSetToList(ResultSet rs) throws SQLException {
-		ResultSetMetaData md = rs.getMetaData();
-		int columns = md.getColumnCount();
-		List<HashMap<String, Object>> list = new ArrayList<HashMap<String, Object>>();
-		while (rs.next()) {
-			HashMap<String, Object> row = new HashMap<String, Object>(columns);
-			for (int i = 1; i <= columns; ++i) {
-				row.put(md.getColumnName(i), rs.getObject(i));
-			}
-			list.add(row);
-		}
-		return list;
+	private Terminal convertCsvToTerminal(String record[]) {
+		Terminal terminal = new Terminal();
+		terminal.setColuna1(record[0]);
+		terminal.setColuna2(record[1]);
+		terminal.setColuna3(record[2]);
+		terminal.setColuna4(record[3]);
+		terminal.setColuna5(record[4]);
+		terminal.setColuna6(record[5]);
+		terminal.setColuna7(record[6]);
+		terminal.setColuna8(record[7]);
+		terminal.setColuna9(record[8]);
+		terminal.setColuna10(record[9]);
+		terminal.setColuna11(record[10]);
+		terminal.setColuna12(record[11]);
+		terminal.setColuna13(record[12]);
+		terminal.setColuna14(record[13]);
+		terminal.setColuna15(record[14]);
+		terminal.setColuna16(record[15]);
+		terminal.setColuna17(record[16]);
+		terminal.setColuna18(record[17]);
+
+		return terminal;
 	}
 
-	private String insertDataInDB(List<Employee> employees) {
+	private String insertDataInDB(List<Terminal> terminais) {
 		String retorno = "";
 
 		System.setProperty("oracle.jdbc.fanEnabled", "false");
@@ -190,30 +173,66 @@ public class MonitorarTerminaisFunction {
 		Connection conn;
 		try {
 			conn = poolDataSource.getConnection();
+
+			Statement stmtSeq = conn.createStatement();
+
 			conn.setAutoCommit(false);
 
-			PreparedStatement stmt = conn.prepareStatement("insert into EMPLOYEES values(?,?,?)");
-			
-			System.out.println("Insert data in DB...");
+			PreparedStatement stmt = conn.prepareStatement("insert into TERMINAIS values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 
-			for (Employee employee : employees) {
-				stmt.setString(1, employee.getEmail());
-				stmt.setString(2, employee.getName());
-				stmt.setString(3, employee.getDepartamento());
+			System.out.println("Inserting data in DB...");
+
+			for (Terminal terminal : terminais) {
+				ResultSet rs = stmtSeq.executeQuery("SELECT terminais_seq.NEXTVAL FROM dual");
+				int seq_id = 0;
+
+				if (rs != null && rs.next()) {
+					seq_id = rs.getInt(1);
+
+					rs.close();
+				}
+
+				stmt.setInt(1, seq_id);
+				stmt.setString(2, terminal.getColuna1());
+				stmt.setString(3, terminal.getColuna2());
+				stmt.setString(4, terminal.getColuna3());
+				stmt.setString(5, terminal.getColuna4());
+				stmt.setString(6, terminal.getColuna5());
+				stmt.setString(7, terminal.getColuna6());
+				stmt.setString(8, terminal.getColuna7());
+				stmt.setString(9, terminal.getColuna8());
+				stmt.setString(10, terminal.getColuna9());
+				stmt.setString(11, terminal.getColuna10());
+				stmt.setString(12, terminal.getColuna11());
+				stmt.setString(13, terminal.getColuna12());
+				stmt.setString(14, terminal.getColuna13());
+				stmt.setString(15, terminal.getColuna14());
+				stmt.setString(16, terminal.getColuna15());
+				stmt.setString(17, terminal.getColuna16());
+				stmt.setString(18, terminal.getColuna17());
+				stmt.setString(19, terminal.getColuna18());
+
 				stmt.addBatch();
 			}
 
-			int[] updateCounts = stmt.executeBatch();
-			System.out.println(Arrays.toString(updateCounts));
+			stmt.executeBatch();
+			//int[] updateCounts = stmt.executeBatch();
+			//System.out.println(Arrays.toString(updateCounts));
+
+			stmtSeq.close();
+
 			conn.commit();
-			
+
 			conn.close();
 
-			retorno = "Sucesso ==============";
+			System.out.println("Data sucessful inserted in DB...");
+
+			retorno = "Data from TERMINAIS sucessful inserted in DB...";
+			
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			retorno = "Erro ==============";
+			retorno = "Error to insert Data from TERMINAIS in DB...";
 		}
 
 		return retorno;
